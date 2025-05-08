@@ -6,3 +6,7 @@ app = FastAPI(docs_url="/api/py/docs", openapi_url="/api/py/openapi.json")
 @app.get("/api/py/helloFastApi")
 def hello_fast_api():
     return {"message": "Hi WWW from FastAPI"}
+
+@app.get("/api/py/hi")
+def hi_fast_api():
+    return {"message": "今天太开心了"}
