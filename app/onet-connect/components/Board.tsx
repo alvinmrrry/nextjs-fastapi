@@ -19,7 +19,7 @@ const Board: React.FC<BoardProps> = () => {
   const [score, setScore] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(INITIAL_TIME);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
-  const [isLoadingBoard, setIsLoadingBoard] = useState<boolean>(true); // For loading message
+  const [isLoadingBoard, setIsLoadingBoard] = useState<boolean>(true);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(-1);
@@ -218,7 +218,7 @@ const Board: React.FC<BoardProps> = () => {
   }, []); 
 
   const initializeBoard = useCallback(() => { 
-    setIsLoadingBoard(true); // Set loading state
+    setIsLoadingBoard(true);
     setScore(0);
     setTimeRemaining(INITIAL_TIME);
     setIsGameOver(false);
@@ -228,8 +228,6 @@ const Board: React.FC<BoardProps> = () => {
     const MAX_LAYOUT_ATTEMPTS = 100; 
     let solverAttempts = 0;
 
-    // This function will run in the main thread, potentially blocking UI.
-    // For very long operations, consider a Web Worker or async chunks if possible.
     const findSolvableBoard = () => {
       while (true) { 
         layoutAttempts = 0;
@@ -269,18 +267,14 @@ const Board: React.FC<BoardProps> = () => {
           break; 
         } else {
           console.log(`Board from solver attempt #${solverAttempts} is not fully solvable. Retrying...`);
-          if (solverAttempts > 0 && solverAttempts % 20 === 0) { // Reduced log frequency
+          if (solverAttempts > 0 && solverAttempts % 20 === 0) { 
               console.warn(`Solver has tried ${solverAttempts} times without finding a fully solvable board. This might take a very long time.`);
           }
         }
       }
     };
-    
-    // Run synchronously for now, as per user's "don't care about time"
-    // If this blocks too much, it would need to be made async or moved to a worker.
     findSolvableBoard();
-
-  }, [generateBoardLayout, internalHasValidMove, solveBoardRecursively]);
+  }, [generateBoardLayout, internalHasValidMove, solveBoardRecursively, setIsLoadingBoard, setScore, setTimeRemaining, setIsGameOver, setBoard ]); // Added all state setters used inside
 
   useEffect(() => {
     initializeBoard(); 
@@ -419,9 +413,14 @@ const Board: React.FC<BoardProps> = () => {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  if (isLoadingBoard || board.length === 0) { // Updated loading condition
+  if (isLoadingBoard) { // Show loading only when isLoadingBoard is true
     return <div className="flex items-center justify-center min-h-screen text-2xl">正在生成保证可解的棋盘，请稍候...</div>;
   }
+  
+  if (board.length === 0 && !isLoadingBoard) { // If not loading and board is empty (e.g. error during init)
+     return <div className="flex items-center justify-center min-h-screen text-2xl text-red-500">棋盘加载失败，请刷新页面。</div>;
+  }
+
 
   return (
     <>
