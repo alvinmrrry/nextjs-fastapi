@@ -1,11 +1,10 @@
 import React from 'react';
 import Image from 'next/image'; // Import next/image
-// import { TileData } from '../types'; // Will be used later
 
 interface TileProps {
   id: number;
-  value: number; // Or string, depending on how we represent tile types
-  image?: string; // Optional image for the tile
+  value: number; 
+  image?: string; 
   isSelected: boolean;
   isMatched: boolean;
   onClick: (id: number) => void;
@@ -39,7 +38,7 @@ const Tile: React.FC<TileProps> = ({
       {image ? (
         <Image src={image} alt={`Tile ${value}`} width={48} height={48} style={{ objectFit: 'contain' }} />
       ) : (
-        value
+        <span className="text-2xl">{value}</span> // Ensure number is also styled if needed
       )}
     </div>
   );
