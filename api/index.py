@@ -18,4 +18,4 @@ def hello_fast_api():
 
 @app.get("/api/py/hi")
 def hi_fast_api():
-    return {"message": "今天太开心了"}
+    return {"message": "今天太开心"}
