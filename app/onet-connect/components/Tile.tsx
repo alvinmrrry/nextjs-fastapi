@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image'; // Import next/image
 // import { TileData } from '../types'; // Will be used later
 
 interface TileProps {
@@ -36,7 +37,7 @@ const Tile: React.FC<TileProps> = ({
       onClick={() => onClick(id)}
     >
       {image ? (
-        <img src={image} alt={`Tile ${value}`} className="w-12 h-12 object-contain" />
+        <Image src={image} alt={`Tile ${value}`} width={48} height={48} style={{ objectFit: 'contain' }} />
       ) : (
         value
       )}
