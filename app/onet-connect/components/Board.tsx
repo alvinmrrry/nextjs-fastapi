@@ -24,66 +24,8 @@ const Board: React.FC<BoardProps> = () => {
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Renamed initializeBoardWithSolver to initializeBoard to match useEffect call
-  const initializeBoard = () => { 
-    setScore(0);
-    setTimeRemaining(INITIAL_TIME);
-    setIsGameOver(false);
-    
-    let newBoardAttempt: TileData[][];
-    let layoutAttempts = 0;
-    const MAX_LAYOUT_ATTEMPTS = 100; 
-    let solverAttempts = 0;
-
-    // Loop indefinitely until a fully solvable board is found
-    // eslint-disable-next-line no-constant-condition
-    while (true) { 
-      layoutAttempts = 0;
-      // First, find a layout that has at least one initial move
-      do { 
-        newBoardAttempt = generateBoardLayout();
-        if (newBoardAttempt.length === 0) {
-          console.error("Board layout generation failed during solver loop.");
-          if(layoutAttempts > MAX_LAYOUT_ATTEMPTS / 5) { 
-             console.error("generateBoardLayout seems to be failing consistently. Stopping.");
-             alert("棋盘布局生成严重失败，请刷新重试。");
-             setIsGameOver(true); 
-             return;
-          }
-          layoutAttempts++; 
-          continue; 
-        }
-        layoutAttempts++;
-        if (layoutAttempts > MAX_LAYOUT_ATTEMPTS) {
-          console.error("Failed to generate an initially solvable board (at least one move) after many attempts.");
-          alert("无法生成有初始解的棋盘，请刷新重试。");
-          setIsGameOver(true);
-          return; 
-        }
-      } while (!internalHasValidMove(newBoardAttempt));
-
-      solverAttempts++;
-      console.log(`Attempting to validate solvability of board (Solver attempt #${solverAttempts})`);
-      
-      const boardForSolver = newBoardAttempt.map(row => row.map(tile => ({...tile})));
-
-      if (solveBoardRecursively(boardForSolver)) {
-        console.log(`Fully solvable board found on solver attempt #${solverAttempts}.`);
-        setBoard(newBoardAttempt); 
-        break; 
-      } else {
-        console.log(`Board from solver attempt #${solverAttempts} is not fully solvable. Retrying...`);
-        if (solverAttempts > 0 && solverAttempts % 50 === 0) { // Log progress every 50 solver attempts
-            console.warn(`Solver has tried ${solverAttempts} times without finding a fully solvable board. This might take a very long time or indicate an issue.`);
-            // Optional: Implement a very high limit to prevent true infinite loops in extreme cases
-            // if (solverAttempts > 10000) { alert("Solver is taking too long, aborting."); return; }
-        }
-      }
-    }
-  };
-
   useEffect(() => {
-    initializeBoard(); // Now calls the modified version
+    initializeBoard(); // This will call the modified initializeBoard
     if (MUSIC_PLAYLIST.length > 0) {
       setCurrentSongIndex(Math.floor(Math.random() * MUSIC_PLAYLIST.length));
     }
@@ -197,7 +139,7 @@ const Board: React.FC<BoardProps> = () => {
     }
     return false; 
   };
-
+  
   const solveBoardRecursively = (currentBoardState: TileData[][], depth = 0): boolean => {
     const MAX_SOLVER_DEPTH = (BOARD_ROWS * BOARD_COLS) / 2 + 5; 
     if (depth > MAX_SOLVER_DEPTH) {
@@ -252,6 +194,67 @@ const Board: React.FC<BoardProps> = () => {
       tile2Ref.isMatched = false;
     }
     return false; 
+  };
+
+  // This is the main initialization function called by useEffect
+  const initializeBoard = () => {
+    setScore(0);
+    setTimeRemaining(INITIAL_TIME);
+    setIsGameOver(false);
+    
+    let newBoardAttempt: TileData[][];
+    let layoutAttempts = 0;
+    const MAX_LAYOUT_ATTEMPTS = 100; 
+    let solverAttempts = 0;
+
+    // Loop indefinitely until a fully solvable board is found
+    // eslint-disable-next-line no-constant-condition
+    while (true) { 
+      layoutAttempts = 0;
+      // First, find a layout that has at least one initial move
+      do { 
+        newBoardAttempt = generateBoardLayout();
+        if (newBoardAttempt.length === 0) { // Check if generateBoardLayout failed (e.g. not enough images)
+          console.error("Board layout generation failed (e.g., not enough images).");
+          // This is a critical error if generateBoardLayout returns empty.
+          // We might want to stop the game or show a persistent error.
+          // For now, if it happens repeatedly, we'll alert and stop.
+          if(layoutAttempts > MAX_LAYOUT_ATTEMPTS / 10) { 
+             console.error("generateBoardLayout seems to be failing consistently. Stopping.");
+             alert("棋盘布局生成严重失败，请刷新重试。");
+             setIsGameOver(true); 
+             return; // Exit initializeBoard
+          }
+          layoutAttempts++; 
+          continue; // Retry generating layout
+        }
+        layoutAttempts++;
+        if (layoutAttempts > MAX_LAYOUT_ATTEMPTS) {
+          console.error("Failed to generate an initially solvable board (at least one move) after many attempts.");
+          alert("无法生成有初始解的棋盘，请刷新重试。");
+          setIsGameOver(true); // Critical error, stop game.
+          return; // Exit initializeBoard
+        }
+      } while (!internalHasValidMove(newBoardAttempt)); // newBoardAttempt is guaranteed non-empty here
+
+      solverAttempts++;
+      console.log(`Attempting to validate solvability of board (Solver attempt #${solverAttempts})`);
+      
+      // Create a deep copy for the solver to mutate and restore, so original newBoardAttempt is preserved
+      const boardForSolver = newBoardAttempt.map(row => row.map(tile => ({...tile})));
+
+      if (solveBoardRecursively(boardForSolver)) {
+        console.log(`Fully solvable board found on solver attempt #${solverAttempts}.`);
+        setBoard(newBoardAttempt); 
+        break; // Exit the while(true) loop, a solvable board is found
+      } else {
+        console.log(`Board from solver attempt #${solverAttempts} is not fully solvable. Retrying...`);
+        if (solverAttempts > 0 && solverAttempts % 50 === 0) { 
+            console.warn(`Solver has tried ${solverAttempts} times without finding a fully solvable board. This might take a very long time or indicate an issue.`);
+        }
+        // Loop continues to find a new board layout and try solving it
+      }
+    }
   };
 
   const handleTileClick = (id: number) => {
