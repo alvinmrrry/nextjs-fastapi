@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Tile from './Tile';
 import { TileData } from '../types';
 
@@ -10,7 +10,7 @@ const NUM_UNIQUE_TILES = (BOARD_ROWS * BOARD_COLS) / 2;
 
 interface BoardProps {}
 
-const INITIAL_TIME = 10 * 60; // 10 minutes in seconds
+const INITIAL_TIME = 10 * 60; 
 const MUSIC_PLAYLIST = ['M800003SSoRr0UHx45.mp3'];
 
 const Board: React.FC<BoardProps> = () => {
@@ -19,287 +19,19 @@ const Board: React.FC<BoardProps> = () => {
   const [score, setScore] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(INITIAL_TIME);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
+  const [isLoadingBoard, setIsLoadingBoard] = useState<boolean>(true); // For loading message
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  useEffect(() => {
-    initializeBoard(); // This will call the modified initializeBoard
-    if (MUSIC_PLAYLIST.length > 0) {
-      setCurrentSongIndex(Math.floor(Math.random() * MUSIC_PLAYLIST.length));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isGameOver || timeRemaining <= 0) {
-      if (timeRemaining <= 0 && !isGameOver) {
-        console.log("Time's up! Game Over.");
-        setIsGameOver(true);
-      }
-      return;
-    }
-    const timerId = setInterval(() => {
-      setTimeRemaining(prevTime => {
-        if (prevTime <= 1) {
-          clearInterval(timerId);
-          setIsGameOver(true);
-          console.log("Time's up! Game Over.");
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerId);
-  }, [timeRemaining, isGameOver]);
-
-  const generateBoardLayout = (): TileData[][] => {
-    const tileValues: number[] = []; 
-    for (let i = 0; i < NUM_UNIQUE_TILES; i++) {
-      tileValues.push(i, i); 
-    }
-    for (let i = tileValues.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [tileValues[i], tileValues[j]] = [tileValues[j], tileValues[i]];
-    }
-
-    const ALL_ANIMAL_IMAGES = [
-      "001-cat.png", "002-cow.png", "003-dog.png", "004-lion.png", "005-monkey.png", 
-      "006-tiger.png", "007-giraffe.png", "008-crocodile.png", "009-zebra.png", "010-rabbit.png",
-      "011-goat.png", "012-horse.png", "013-whale.png", "014-octopus.png", "015-elephant.png",
-      "016-seal.png", "017-flamingo.png", "018-penguin.png", "019-leopard.png", "020-bear.png",
-      "021-reindeer.png", "022-squirrel.png", "023-eagle.png", "024-ostrich.png", "025-frog.png",
-      "026-raccoon.png", "027-tortoise.png", "028-hummingbird.png", "029-crab.png", "030-cheetah.png",
-      "031-yak.png", "032-cougar.png", "033-shark.png", "034-beetle.png", "035-snail.png",
-      "036-peacock.png", "037-ant.png", "038-pig.png", "039-orangutan.png", "040-jaguar.png",
-      "041-chameleon.png", "042-seahorse.png", "043-turkey.png", "044-emu.png", "045-walrus.png",
-      "046-black-panther.png", "047-hamster.png", "048-turtle.png", "049-panda-bear.png", "050-bison.png",
-      "051-owl.png", "052-snake.png", "053-clown-fish.png", "054-platypus.png", "055-skunk.png",
-      "056-deer.png", "057-otter.png", "058-kangaroo.png", "059-bee.png", "060-blue-tang-fish.png",
-      "061-dolphin.png", "062-orca.png", "063-camel.png", "064-gorilla.png", "065-prawn.png",
-      "066-toucan.png", "067-hedgehog.png", "068-rhinoceros.png", "069-anteater.png", "070-hippopotamus.png",
-      "071-rat.png", "072-arctic-fox.png", "073-polar-bear.png", "074-guinea-pig.png", "075-wolf.png",
-      "076-salmon.png", "077-kiwi.png", "078-sheep.png", "079-llama.png", "080-fox.png",
-      "081-sugar-glider.png", "082-manta-ray.png", "083-mouse.png", "084-puffer-fish.png", "085-duck.png",
-      "086-jellyfish.png", "087-pigeon.png", "088-chicken.png", "089-swan.png", "090-praying-mantis.png",
-      "091-porcupine.png", "092-spider.png", "093-red-panda.png", "094-sloth.png", "095-koala.png",
-      "096-lemur.png", "097-lobster.png", "098-ladybug.png", "099-starfish.png", "100-scorpion.png"
-    ];
-
-    if (ALL_ANIMAL_IMAGES.length < NUM_UNIQUE_TILES) {
-      console.error("Not enough unique images available for the game board!");
-      return [];
-    }
-    const shuffledImages = [...ALL_ANIMAL_IMAGES].sort(() => 0.5 - Math.random());
-    const gameImageFilenames = shuffledImages.slice(0, NUM_UNIQUE_TILES);
-    
-    const valueToImagePathMap: { [key: number]: string } = {};
-    gameImageFilenames.forEach((filename, index) => {
-      valueToImagePathMap[index] = `/images/animals/${filename}`;
-    });
-
-    const newBoardLayout: TileData[][] = [];
-    let tileIdCounter = 0;
-    for (let r = 0; r < BOARD_ROWS; r++) {
-      const row: TileData[] = [];
-      for (let c = 0; c < BOARD_COLS; c++) {
-        const currentTileValue = tileValues[r * BOARD_COLS + c];
-        if (currentTileValue === undefined) continue;
-        row.push({
-          id: tileIdCounter++, value: currentTileValue,
-          image: valueToImagePathMap[currentTileValue], 
-          isMatched: false, isSelected: false, row: r, col: c,
-        });
-      }
-      newBoardLayout.push(row);
-    }
-    return newBoardLayout;
-  };
-
-  const internalHasValidMove = (currentBoardState: TileData[][]): boolean => {
-    if (!currentBoardState || currentBoardState.length === 0) return false;
-    const unmatchedTiles: TileData[] = [];
-    for (const row of currentBoardState) {
-      for (const tile of row) {
-        if (!tile.isMatched) {
-          unmatchedTiles.push(tile);
-        }
-      }
-    }
-    for (let i = 0; i < unmatchedTiles.length; i++) {
-      for (let j = i + 1; j < unmatchedTiles.length; j++) {
-        const tile1 = unmatchedTiles[i];
-        const tile2 = unmatchedTiles[j];
-        if (tile1.value === tile2.value) {
-          if (canConnect(tile1, tile2, currentBoardState)) { 
-            return true; 
-          }
-        }
-      }
-    }
-    return false; 
-  };
-  
-  const solveBoardRecursively = (currentBoardState: TileData[][], depth = 0): boolean => {
-    const MAX_SOLVER_DEPTH = (BOARD_ROWS * BOARD_COLS) / 2 + 5; 
-    if (depth > MAX_SOLVER_DEPTH) {
-      console.warn("Solver reached max depth, assuming not easily solvable.");
-      return false;
-    }
-
-    if (currentBoardState.every(row => row.every(tile => tile.isMatched))) {
-      return true; 
-    }
-  
-    const unmatchedTiles: TileData[] = [];
-    for (const row of currentBoardState) {
-      for (const tile of row) {
-        if (!tile.isMatched) {
-          unmatchedTiles.push(tile);
-        }
-      }
-    }
-  
-    const possibleMoves: Array<{ tile1: TileData, tile2: TileData }> = [];
-    for (let i = 0; i < unmatchedTiles.length; i++) {
-      for (let j = i + 1; j < unmatchedTiles.length; j++) {
-        const t1 = unmatchedTiles[i];
-        const t2 = unmatchedTiles[j];
-        if (t1.value === t2.value && canConnect(t1, t2, currentBoardState)) {
-          possibleMoves.push({ tile1: t1, tile2: t2 });
-        }
-      }
-    }
-  
-    if (possibleMoves.length === 0) {
-      return false; 
-    }
-  
-    possibleMoves.sort(() => 0.5 - Math.random());
-
-    for (const move of possibleMoves) {
-      const tile1Ref = currentBoardState[move.tile1.row][move.tile1.col];
-      const tile2Ref = currentBoardState[move.tile2.row][move.tile2.col];
-      
-      tile1Ref.isMatched = true;
-      tile2Ref.isMatched = true;
-
-      if (solveBoardRecursively(currentBoardState, depth + 1)) {
-        tile1Ref.isMatched = false;
-        tile2Ref.isMatched = false;
-        return true; 
-      }
-      
-      tile1Ref.isMatched = false;
-      tile2Ref.isMatched = false;
-    }
-    return false; 
-  };
-
-  // This is the main initialization function called by useEffect
-  const initializeBoard = () => {
-    setScore(0);
-    setTimeRemaining(INITIAL_TIME);
-    setIsGameOver(false);
-    
-    let newBoardAttempt: TileData[][];
-    let layoutAttempts = 0;
-    const MAX_LAYOUT_ATTEMPTS = 100; 
-    let solverAttempts = 0;
-
-    // Loop indefinitely until a fully solvable board is found
-    // eslint-disable-next-line no-constant-condition
-    while (true) { 
-      layoutAttempts = 0;
-      // First, find a layout that has at least one initial move
-      do { 
-        newBoardAttempt = generateBoardLayout();
-        if (newBoardAttempt.length === 0) { // Check if generateBoardLayout failed (e.g. not enough images)
-          console.error("Board layout generation failed (e.g., not enough images).");
-          // This is a critical error if generateBoardLayout returns empty.
-          // We might want to stop the game or show a persistent error.
-          // For now, if it happens repeatedly, we'll alert and stop.
-          if(layoutAttempts > MAX_LAYOUT_ATTEMPTS / 10) { 
-             console.error("generateBoardLayout seems to be failing consistently. Stopping.");
-             alert("棋盘布局生成严重失败，请刷新重试。");
-             setIsGameOver(true); 
-             return; // Exit initializeBoard
-          }
-          layoutAttempts++; 
-          continue; // Retry generating layout
-        }
-        layoutAttempts++;
-        if (layoutAttempts > MAX_LAYOUT_ATTEMPTS) {
-          console.error("Failed to generate an initially solvable board (at least one move) after many attempts.");
-          alert("无法生成有初始解的棋盘，请刷新重试。");
-          setIsGameOver(true); // Critical error, stop game.
-          return; // Exit initializeBoard
-        }
-      } while (!internalHasValidMove(newBoardAttempt)); // newBoardAttempt is guaranteed non-empty here
-
-      solverAttempts++;
-      console.log(`Attempting to validate solvability of board (Solver attempt #${solverAttempts})`);
-      
-      // Create a deep copy for the solver to mutate and restore, so original newBoardAttempt is preserved
-      const boardForSolver = newBoardAttempt.map(row => row.map(tile => ({...tile})));
-
-      if (solveBoardRecursively(boardForSolver)) {
-        console.log(`Fully solvable board found on solver attempt #${solverAttempts}.`);
-        setBoard(newBoardAttempt); 
-        break; // Exit the while(true) loop, a solvable board is found
-      } else {
-        console.log(`Board from solver attempt #${solverAttempts} is not fully solvable. Retrying...`);
-        if (solverAttempts > 0 && solverAttempts % 50 === 0) { 
-            console.warn(`Solver has tried ${solverAttempts} times without finding a fully solvable board. This might take a very long time or indicate an issue.`);
-        }
-        // Loop continues to find a new board layout and try solving it
-      }
-    }
-  };
-
-  const handleTileClick = (id: number) => {
-    if (isGameOver) return; 
-    let clickedTile: TileData | null = null;
-    for (const row of board) {
-      const found = row.find(tile => tile.id === id);
-      if (found) {
-        clickedTile = found;
-        break;
-      }
-    }
-
-    if (!clickedTile || clickedTile.isMatched || clickedTile.isSelected) {
-      return;
-    }
-
-    if (!selectedTile) {
-      setSelectedTile(clickedTile);
-      updateTileSelectionState(clickedTile.id, true);
-    } else {
-      if (selectedTile.id === clickedTile.id) {
-        updateTileSelectionState(selectedTile.id, false);
-        setSelectedTile(null);
-        return;
-      }
-
-      if (selectedTile.value === clickedTile.value && canConnect(selectedTile, clickedTile, board)) {
-        markAsMatched(selectedTile.id, clickedTile.id);
-        setSelectedTile(null);
-      } else {
-        updateTileSelectionState(selectedTile.id, false);
-        setSelectedTile(clickedTile);
-        updateTileSelectionState(clickedTile.id, true);
-      }
-    }
-  };
-
-  const isTileAvailableForPath = (r: number, c: number, boardState: TileData[][], tile1Id: number, tile2Id: number): boolean => {
+  const isTileAvailableForPath = useCallback((r: number, c: number, boardState: TileData[][], tile1Id: number, tile2Id: number): boolean => {
     if (r < 0 || r >= BOARD_ROWS || c < 0 || c >= BOARD_COLS) return true; 
     const tile = boardState[r][c];
     return tile.isMatched || tile.id === tile1Id || tile.id === tile2Id;
-  };
+  }, []);
 
-  const isStraightPathClear = (r1: number, c1: number, r2: number, c2: number, boardState: TileData[][], tile1Id: number, tile2Id: number): boolean => {
+  const isStraightPathClear = useCallback((r1: number, c1: number, r2: number, c2: number, boardState: TileData[][], tile1Id: number, tile2Id: number): boolean => {
     if (r1 === r2) { 
       for (let col = Math.min(c1, c2) + 1; col < Math.max(c1, c2); col++) {
         if (!isTileAvailableForPath(r1, col, boardState, tile1Id, tile2Id)) return false;
@@ -312,9 +44,9 @@ const Board: React.FC<BoardProps> = () => {
       return false; 
     }
     return true;
-  };
+  }, [isTileAvailableForPath]);
   
-  const canConnect = (tile1: TileData, tile2: TileData, boardState: TileData[][]): boolean => {
+  const canConnect = useCallback((tile1: TileData, tile2: TileData, boardState: TileData[][]): boolean => {
     const { row: r1, col: c1, id: id1 } = tile1;
     const { row: r2, col: c2, id: id2 } = tile2;
 
@@ -352,10 +84,247 @@ const Board: React.FC<BoardProps> = () => {
         return true;
       }
     }
-    
     return false;
-  };
+  }, [isTileAvailableForPath, isStraightPathClear]);
 
+  const internalHasValidMove = useCallback((currentBoardState: TileData[][]): boolean => {
+    if (!currentBoardState || currentBoardState.length === 0) return false;
+    const unmatchedTiles: TileData[] = [];
+    for (const row of currentBoardState) {
+      for (const tile of row) {
+        if (!tile.isMatched) {
+          unmatchedTiles.push(tile);
+        }
+      }
+    }
+    for (let i = 0; i < unmatchedTiles.length; i++) {
+      for (let j = i + 1; j < unmatchedTiles.length; j++) {
+        const tile1 = unmatchedTiles[i];
+        const tile2 = unmatchedTiles[j];
+        if (tile1.value === tile2.value) {
+          if (canConnect(tile1, tile2, currentBoardState)) { 
+            return true; 
+          }
+        }
+      }
+    }
+    return false; 
+  }, [canConnect]); 
+
+  const solveBoardRecursively = useCallback((currentBoardState: TileData[][], depth = 0): boolean => {
+    const MAX_SOLVER_DEPTH = (BOARD_ROWS * BOARD_COLS) / 2 + 5; 
+    if (depth > MAX_SOLVER_DEPTH) {
+      console.warn("Solver reached max depth, assuming not easily solvable.");
+      return false;
+    }
+    if (currentBoardState.every(row => row.every(tile => tile.isMatched))) {
+      return true; 
+    }
+    const unmatchedTiles: TileData[] = [];
+    for (const row of currentBoardState) {
+      for (const tile of row) {
+        if (!tile.isMatched) {
+          unmatchedTiles.push(tile);
+        }
+      }
+    }
+    const possibleMoves: Array<{ tile1: TileData, tile2: TileData }> = [];
+    for (let i = 0; i < unmatchedTiles.length; i++) {
+      for (let j = i + 1; j < unmatchedTiles.length; j++) {
+        const t1 = unmatchedTiles[i];
+        const t2 = unmatchedTiles[j];
+        if (t1.value === t2.value && canConnect(t1, t2, currentBoardState)) {
+          possibleMoves.push({ tile1: t1, tile2: t2 });
+        }
+      }
+    }
+    if (possibleMoves.length === 0) {
+      return false; 
+    }
+    possibleMoves.sort(() => 0.5 - Math.random());
+    for (const move of possibleMoves) {
+      const tile1Ref = currentBoardState[move.tile1.row][move.tile1.col];
+      const tile2Ref = currentBoardState[move.tile2.row][move.tile2.col];
+      tile1Ref.isMatched = true;
+      tile2Ref.isMatched = true;
+      if (solveBoardRecursively(currentBoardState, depth + 1)) {
+        tile1Ref.isMatched = false;
+        tile2Ref.isMatched = false;
+        return true; 
+      }
+      tile1Ref.isMatched = false;
+      tile2Ref.isMatched = false;
+    }
+    return false; 
+  }, [canConnect]); 
+
+  const generateBoardLayout = useCallback((): TileData[][] => {
+    const tileValues: number[] = []; 
+    for (let i = 0; i < NUM_UNIQUE_TILES; i++) {
+      tileValues.push(i, i); 
+    }
+    for (let i = tileValues.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tileValues[i], tileValues[j]] = [tileValues[j], tileValues[i]];
+    }
+    const ALL_ANIMAL_IMAGES = [
+      "001-cat.png", "002-cow.png", "003-dog.png", "004-lion.png", "005-monkey.png", 
+      "006-tiger.png", "007-giraffe.png", "008-crocodile.png", "009-zebra.png", "010-rabbit.png",
+      "011-goat.png", "012-horse.png", "013-whale.png", "014-octopus.png", "015-elephant.png",
+      "016-seal.png", "017-flamingo.png", "018-penguin.png", "019-leopard.png", "020-bear.png",
+      "021-reindeer.png", "022-squirrel.png", "023-eagle.png", "024-ostrich.png", "025-frog.png",
+      "026-raccoon.png", "027-tortoise.png", "028-hummingbird.png", "029-crab.png", "030-cheetah.png",
+      "031-yak.png", "032-cougar.png", "033-shark.png", "034-beetle.png", "035-snail.png",
+      "036-peacock.png", "037-ant.png", "038-pig.png", "039-orangutan.png", "040-jaguar.png",
+      "041-chameleon.png", "042-seahorse.png", "043-turkey.png", "044-emu.png", "045-walrus.png",
+      "046-black-panther.png", "047-hamster.png", "048-turtle.png", "049-panda-bear.png", "050-bison.png",
+      "051-owl.png", "052-snake.png", "053-clown-fish.png", "054-platypus.png", "055-skunk.png",
+      "056-deer.png", "057-otter.png", "058-kangaroo.png", "059-bee.png", "060-blue-tang-fish.png",
+      "061-dolphin.png", "062-orca.png", "063-camel.png", "064-gorilla.png", "065-prawn.png",
+      "066-toucan.png", "067-hedgehog.png", "068-rhinoceros.png", "069-anteater.png", "070-hippopotamus.png",
+      "071-rat.png", "072-arctic-fox.png", "073-polar-bear.png", "074-guinea-pig.png", "075-wolf.png",
+      "076-salmon.png", "077-kiwi.png", "078-sheep.png", "079-llama.png", "080-fox.png",
+      "081-sugar-glider.png", "082-manta-ray.png", "083-mouse.png", "084-puffer-fish.png", "085-duck.png",
+      "086-jellyfish.png", "087-pigeon.png", "088-chicken.png", "089-swan.png", "090-praying-mantis.png",
+      "091-porcupine.png", "092-spider.png", "093-red-panda.png", "094-sloth.png", "095-koala.png",
+      "096-lemur.png", "097-lobster.png", "098-ladybug.png", "099-starfish.png", "100-scorpion.png"
+    ];
+    if (ALL_ANIMAL_IMAGES.length < NUM_UNIQUE_TILES) {
+      console.error("Not enough unique images available for the game board!");
+      return [];
+    }
+    const shuffledImages = [...ALL_ANIMAL_IMAGES].sort(() => 0.5 - Math.random());
+    const gameImageFilenames = shuffledImages.slice(0, NUM_UNIQUE_TILES);
+    const valueToImagePathMap: { [key: number]: string } = {};
+    gameImageFilenames.forEach((filename, index) => {
+      valueToImagePathMap[index] = `/images/animals/${filename}`;
+    });
+    const newBoardLayout: TileData[][] = [];
+    let tileIdCounter = 0;
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      const row: TileData[] = [];
+      for (let c = 0; c < BOARD_COLS; c++) {
+        const currentTileValue = tileValues[r * BOARD_COLS + c];
+        if (currentTileValue === undefined) continue;
+        row.push({
+          id: tileIdCounter++, value: currentTileValue,
+          image: valueToImagePathMap[currentTileValue], 
+          isMatched: false, isSelected: false, row: r, col: c,
+        });
+      }
+      newBoardLayout.push(row);
+    }
+    return newBoardLayout;
+  }, []); 
+
+  const initializeBoard = useCallback(() => { 
+    setIsLoadingBoard(true); // Set loading state
+    setScore(0);
+    setTimeRemaining(INITIAL_TIME);
+    setIsGameOver(false);
+    
+    let newBoardAttempt: TileData[][];
+    let layoutAttempts = 0;
+    const MAX_LAYOUT_ATTEMPTS = 100; 
+    let solverAttempts = 0;
+
+    // This function will run in the main thread, potentially blocking UI.
+    // For very long operations, consider a Web Worker or async chunks if possible.
+    const findSolvableBoard = () => {
+      while (true) { 
+        layoutAttempts = 0;
+        do { 
+          newBoardAttempt = generateBoardLayout();
+          if (newBoardAttempt.length === 0) {
+            console.error("Board layout generation failed during solver loop.");
+            if(layoutAttempts > MAX_LAYOUT_ATTEMPTS / 5) { 
+               console.error("generateBoardLayout seems to be failing consistently. Stopping.");
+               alert("棋盘布局生成严重失败，请刷新重试。");
+               setIsGameOver(true); 
+               setIsLoadingBoard(false);
+               return;
+            }
+            layoutAttempts++; 
+            continue; 
+          }
+          layoutAttempts++;
+          if (layoutAttempts > MAX_LAYOUT_ATTEMPTS) {
+            console.error("Failed to generate an initially solvable board (at least one move) after many attempts.");
+            alert("无法生成有初始解的棋盘，请刷新重试。");
+            setIsGameOver(true);
+            setIsLoadingBoard(false);
+            return; 
+          }
+        } while (!internalHasValidMove(newBoardAttempt));
+
+        solverAttempts++;
+        console.log(`Attempting to validate solvability of board (Solver attempt #${solverAttempts})`);
+        
+        const boardForSolver = newBoardAttempt.map(row => row.map(tile => ({...tile})));
+
+        if (solveBoardRecursively(boardForSolver)) {
+          console.log(`Fully solvable board found on solver attempt #${solverAttempts}.`);
+          setBoard(newBoardAttempt); 
+          setIsLoadingBoard(false);
+          break; 
+        } else {
+          console.log(`Board from solver attempt #${solverAttempts} is not fully solvable. Retrying...`);
+          if (solverAttempts > 0 && solverAttempts % 20 === 0) { // Reduced log frequency
+              console.warn(`Solver has tried ${solverAttempts} times without finding a fully solvable board. This might take a very long time.`);
+          }
+        }
+      }
+    };
+    
+    // Run synchronously for now, as per user's "don't care about time"
+    // If this blocks too much, it would need to be made async or moved to a worker.
+    findSolvableBoard();
+
+  }, [generateBoardLayout, internalHasValidMove, solveBoardRecursively]);
+
+  useEffect(() => {
+    initializeBoard(); 
+    if (MUSIC_PLAYLIST.length > 0) {
+      setCurrentSongIndex(Math.floor(Math.random() * MUSIC_PLAYLIST.length));
+    }
+  }, [initializeBoard]); 
+
+  const handleTileClick = (id: number) => {
+    if (isGameOver || isLoadingBoard) return; 
+    let clickedTile: TileData | null = null;
+    for (const row of board) {
+      const found = row.find(tile => tile.id === id);
+      if (found) {
+        clickedTile = found;
+        break;
+      }
+    }
+
+    if (!clickedTile || clickedTile.isMatched || clickedTile.isSelected) {
+      return;
+    }
+
+    if (!selectedTile) {
+      setSelectedTile(clickedTile);
+      updateTileSelectionState(clickedTile.id, true);
+    } else {
+      if (selectedTile.id === clickedTile.id) {
+        updateTileSelectionState(selectedTile.id, false);
+        setSelectedTile(null);
+        return;
+      }
+
+      if (selectedTile.value === clickedTile.value && canConnect(selectedTile, clickedTile, board)) {
+        markAsMatched(selectedTile.id, clickedTile.id);
+        setSelectedTile(null);
+      } else {
+        updateTileSelectionState(selectedTile.id, false);
+        setSelectedTile(clickedTile);
+        updateTileSelectionState(clickedTile.id, true);
+      }
+    }
+  };
+  
   const updateTileSelectionState = (tileId: number, isSelected: boolean) => {
     setBoard(prevBoard =>
       prevBoard.map(row =>
@@ -450,8 +419,8 @@ const Board: React.FC<BoardProps> = () => {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  if (board.length === 0) {
-    return <div>Loading board...</div>;
+  if (isLoadingBoard || board.length === 0) { // Updated loading condition
+    return <div className="flex items-center justify-center min-h-screen text-2xl">正在生成保证可解的棋盘，请稍候...</div>;
   }
 
   return (
