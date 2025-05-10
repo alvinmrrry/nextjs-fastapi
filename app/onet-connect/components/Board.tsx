@@ -11,7 +11,6 @@ const NUM_UNIQUE_TILES = (BOARD_ROWS * BOARD_COLS) / 2;
 interface BoardProps {}
 
 const INITIAL_TIME = 10 * 60; 
-const MUSIC_PLAYLIST = ['M800003SSoRr0UHx45.mp3'];
 
 const Board: React.FC<BoardProps> = () => {
   const [board, setBoard] = useState<TileData[][]>([]);
@@ -21,10 +20,6 @@ const Board: React.FC<BoardProps> = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isLoadingBoard, setIsLoadingBoard] = useState<boolean>(true);
   
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [currentSongIndex, setCurrentSongIndex] = useState<number>(-1);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-
   const isTileAvailableForPath = useCallback((r: number, c: number, boardState: TileData[][], tile1Id: number, tile2Id: number): boolean => {
     if (r < 0 || r >= BOARD_ROWS || c < 0 || c >= BOARD_COLS) return true; 
     const tile = boardState[r][c];
@@ -132,9 +127,9 @@ const Board: React.FC<BoardProps> = () => {
     for (let i = 0; i < unmatchedTiles.length; i++) {
       for (let j = i + 1; j < unmatchedTiles.length; j++) {
         const t1 = unmatchedTiles[i];
-        const t2 = unmatchedTiles[j];
-        if (t1.value === t2.value && canConnect(t1, t2, currentBoardState)) {
-          possibleMoves.push({ tile1: t1, tile2: t2 });
+        const tile2 = unmatchedTiles[j];
+        if (t1.value === tile2.value && canConnect(t1, tile2, currentBoardState)) {
+          possibleMoves.push({ tile1: t1, tile2: tile2 });
         }
       }
     }
@@ -274,13 +269,10 @@ const Board: React.FC<BoardProps> = () => {
       }
     };
     findSolvableBoard();
-  }, [generateBoardLayout, internalHasValidMove, solveBoardRecursively, setIsLoadingBoard, setScore, setTimeRemaining, setIsGameOver, setBoard ]); // Added all state setters used inside
+  }, [generateBoardLayout, internalHasValidMove, solveBoardRecursively, setIsLoadingBoard, setScore, setTimeRemaining, setIsGameOver, setBoard ]); 
 
   useEffect(() => {
     initializeBoard(); 
-    if (MUSIC_PLAYLIST.length > 0) {
-      setCurrentSongIndex(Math.floor(Math.random() * MUSIC_PLAYLIST.length));
-    }
   }, [initializeBoard]); 
 
   const handleTileClick = (id: number) => {
@@ -358,84 +350,25 @@ const Board: React.FC<BoardProps> = () => {
     setBoard(nextBoardState); 
   };
 
-  useEffect(() => {
-    if (audioRef.current && currentSongIndex !== -1 && MUSIC_PLAYLIST.length > 0) {
-      audioRef.current.src = `/music/${MUSIC_PLAYLIST[currentSongIndex]}`;
-      audioRef.current.loop = MUSIC_PLAYLIST.length === 1; 
-      audioRef.current.load();
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(error => {
-        console.warn("Music autoplay was prevented:", error);
-        setIsPlaying(false); 
-      });
-    }
-  }, [currentSongIndex]);
-
-  const handleSongEnd = () => {
-    if (audioRef.current && audioRef.current.loop) {
-      setIsPlaying(true); 
-      return;
-    }
-    playNextSong();
-  };
-
-  const playNextSong = () => {
-    if (MUSIC_PLAYLIST.length === 0) return;
-    if (MUSIC_PLAYLIST.length <= 1) { 
-        if(audioRef.current) { 
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().then(() => setIsPlaying(true)).catch(e => setIsPlaying(false));
-        }
-        return;
-    }
-
-    let nextIndex;
-    do {
-      nextIndex = Math.floor(Math.random() * MUSIC_PLAYLIST.length);
-    } while (nextIndex === currentSongIndex); 
-    setCurrentSongIndex(nextIndex);
-  };
-
-  const togglePlayPause = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play().catch(error => console.warn("Play failed:", error));
-    }
-    setIsPlaying(!isPlaying);
-  };
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  if (isLoadingBoard) { // Show loading only when isLoadingBoard is true
+  if (isLoadingBoard) { 
     return <div className="flex items-center justify-center min-h-screen text-2xl">正在生成保证可解的棋盘，请稍候...</div>;
   }
   
-  if (board.length === 0 && !isLoadingBoard) { // If not loading and board is empty (e.g. error during init)
+  if (board.length === 0 && !isLoadingBoard) { 
      return <div className="flex items-center justify-center min-h-screen text-2xl text-red-500">棋盘加载失败，请刷新页面。</div>;
   }
 
-
   return (
     <>
-      <audio ref={audioRef} onEnded={handleSongEnd} />
       <div className="mb-4 text-2xl flex justify-around w-full max-w-md items-center">
         <div>Time: <span className={timeRemaining < 60 ? 'text-red-500 font-bold' : 'font-bold'}>{formatTime(timeRemaining)}</span></div>
         <div>Score: <span className="font-bold">{score}</span></div>
-        {MUSIC_PLAYLIST.length > 0 && (
-          <button 
-            onClick={togglePlayPause}
-            className="px-3 py-1 bg-green-500 hover:bg-green-700 text-white font-semibold rounded text-sm"
-          >
-            {isPlaying ? 'Pause Music' : 'Play Music'}
-          </button>
-        )}
       </div>
       {isGameOver && timeRemaining <=0 && (
         <div className="absolute inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-10">
